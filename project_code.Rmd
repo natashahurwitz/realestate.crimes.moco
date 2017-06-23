@@ -1,0 +1,838 @@
+---
+title: "Untitled"
+author: "Arash Asadabadi"
+date: "December 15, 2016"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+#Use the data sets folder fo setwd
+setwd("C:/Users/Arash/Documents/Data sets")
+
+
+library("plyr")
+library("dplyr")
+library("sqldf")
+library("nFactors")
+library("MASS")
+library("psych")
+library("ggmap")
+library("ggplot2")
+library("corrplot")
+library("lubridate")
+library("reshape")
+library("sqldf")
+library("maps")
+library("zipcode")
+library("caret")
+library("rpart")
+library("rpart.plot")
+library("cwhmisc")
+library("rattle")
+library("e1071")
+library("broom")
+library("randomForest")
+library("nnet")
+library("xtable")
+library("visreg")
+
+################# DATA PREPARAATION  ##########################
+
+
+#combining and exploring data for group project
+#exploration of data for group project
+setwd("C:/Users/Arash/Documents/Data sets")
+crime <- read.csv("Crime_2014.csv")
+facilities <- read.csv("Facilities_by_Zipcode.csv")
+home_sales <- read.csv("MC_Home_Sales_by_Zip_Code_2014.csv")
+dropout <- read.csv("MCPS_Dropout_Attendance_by_Zipcode.csv")
+irs <- read.csv("MC_IRS.csv")
+Most_Data <- read.csv("Most_Data.csv")
+data <- read.csv("Long_and_Foster_Columns_Removed.csv")
+
+##### NOTE: Tthe followin part is the very first codes generated to clean and scrutizing data. it can be skipped######
+
+#Make a table of number of incidents by zipcode using dplyr library
+#it is sorting (TRUE) by most crime to least crime.
+
+zip_code_tbl <- tbl_df(crime)
+Incidents_by_zipcode <-zip_code_tbl %>% group_by(Zip.Code) %>% tally(sort = TRUE)
+write.csv(Incidents_by_zipcode, "Crime_by_Zipcode_2014.csv")
+
+#Rename the columns so they can be combined with Most_Data.csv
+Incidents_by_zipcode$Zip <- Incidents_by_zipcode$Zip.Code
+Incidents_by_zipcode$Number_of_Crimes_2014 <- Incidents_by_zipcode$n
+
+#take out the original names of the columns and keep only the new ones
+keeps <- c("Zip", "Number_of_Crimes_2014")
+Incidents_by_zipcode <-Incidents_by_zipcode[keeps]
+
+#counts the number of specific zipcodes, for example 20852
+#length(which(crime$Zip.Code == 20852))
+
+#same thing with the public facilities dataset
+#facilities_tbl <- tbl_df(facilities)
+#facilities_by_zipcode <-facilities_tbl %>% group_by(Zip) %>% tally(sort = TRUE)
+#write.csv(facilities_by_zipcode, "Facilities_by_Zipcode.csv")
+
+
+#try to combine facilities and crime
+crime$Zip<-crime$Zip.Code
+
+data_1 <- merge(crime, facilities, by = "Zip", all.x = TRUE, all.y = TRUE)
+
+#add dropout
+data_2 <- merge(data_1, dropout, by = "Zip", all.x = TRUE, all.y =TRUE)
+
+#add irs
+data_3 <- merge(data_2, irs, by = "Zip", all.x = TRUE, all.y = TRUE)
+
+
+#combining the crime incidents 2014 with the other Most_Data_file
+Most_Data_2014 <- merge(Incidents_by_zipcode, Most_Data, by = "Zip", all.x = TRUE, all.y = TRUE)
+#write the file to csv
+#write.csv(Most_Data_2014, "Most_Data_2014.csv")
+
+###########
+
+#cleaning Long_and_Foster housing sales dataset
+#original file name Group_Project_L_F_Housing_Cleaning
+#Natasha
+data_1 <- read.csv("Long_and_Foster.csv")
+Most_Data <- read.csv("Most_Data_2014.csv")
+
+str(data_1)
+
+data_1 <- data_1[!is.na(data_1$Zip.Code),]
+#this dataset is clean, there were no na fields in zipcode
+
+
+glimpse(data_1)
+
+#this will list all of the levels in a column
+
+df1 = data_1
+factor1 <- sqldf("select distinct Type as 'Type' from df1")
+factor1 
+
+#lists the number of times each level appears in a column (in this case Type is the column)
+set.seed(1)
+data_1 %>% 
+  group_by(Type) %>%
+  summarise(no_rows = length(Type))
+
+#same thing to find how many sales in each zipcode in 2014
+set.seed(1)
+number_of_sales_by_zip<- data_1 %>% 
+  group_by(Zip.Code) %>%
+  summarise(no_rows = length(Zip.Code))
+
+#Rename the columns so they can be combined with Most_Data.csv
+number_of_sales_by_zip$Zip <- number_of_sales_by_zip$Zip.Code
+number_of_sales_by_zip$Number_of_Sales_2014 <- number_of_sales_by_zip$no_rows
+
+#take out the original names of the columns and keep only the new ones
+keeps <- c("Zip", "Number_of_Sales_2014")
+Sales_by_zipcode <-number_of_sales_by_zip[keeps]
+
+#combining the number of sales 2014 with the other Most_Data_file
+Most_Data_2014 <- merge(number_of_sales_by_zip, Most_Data, by = "Zip", all.x = TRUE, all.y = TRUE)
+row.has.na <- apply(Most_Data_2014, 1, function(x){any(is.na(x))})
+
+
+
+
+
+
+# aggregating the different crime rates by state
+crime<-read.csv("crime-original.csv")
+b=matrix(0,55, 89-23+2)
+for  (i in 24:90)
+  b[,i-22]  <- (aggregate(crime[,i]~Zip.Code,data = crime,FUN = "sum"))$`crime[, i]`
+# 68 crime types for 55 states
+
+
+
+
+#some modification on Crime file in excel( the new crime file is (crime-final))
+crime_f<-read.csv("crime-final.csv")
+#some modification on most_data_2014 in excel( the new file is most_data_2014)
+#some modification on Crime file in excel( the new crime file is (crime-final))
+crime_f<-read.csv("crime-final.csv")
+#most_data
+merge1<-read.csv("merge.csv")
+housing<-data
+colnames(facilities)[1]="Zip.Code"
+data_1 <- merge(crime_f, facilities, by = "Zip.Code", all.x = TRUE, all.y = TRUE)
+data_2 <- merge(data_1,merge1, by = "Zip.Code", all.x = TRUE, all.y = TRUE)
+data_3 <- merge(data_2,housing, by = "Zip.Code", all.x = TRUE, all.y = TRUE)
+data_4<-data_3[-c(1,2100,8099),]
+
+
+
+#Normalizing crimes
+a=data_4$IRS_Estimated_Population_2014
+data_4[,2:24]<-apply(data_4[,2:24],2,FUN = function(x) x/a)
+
+#The final data to work on
+main=data_4
+
+
+
+#removing NAs, Classify based on prices
+nn= is.na(main$community_facilities_count)
+main=main[!nn,]
+main$price_dif= log(main$Close.Price) -log(main$Original.List.Price)
+main$class=cut(main$Close.Price,c(0,300000,650000,8650000),c(1:3))
+main$Date.Quarter=cut(main$Date.Quarter,c(0,1,2,3,4),c(1:4))
+#nn= is.na(main$Lot.Sqft)
+#main=main[!nn,]
+
+
+
+
+############################ Crime Analysis (by Nibret)###########################################
+
+summary(crime_f)
+
+##Focusing on Mean
+
+crime.mean <- lapply(crime_f, mean, na.rm = TRUE)
+
+print(crime.mean) 
+
+
+##Crime Correlation
+
+crime_corelation <- cor(crime_f)
+
+
+corrplot(crime_corelation, method="circle")
+
+##Crime by Month
+
+data = read.csv("date-crime.csv")
+df <- data.frame(data)
+dat.m <- melt(df,id.vars = "Month")
+
+ggplot(dat.m, aes(x = Month, y = value, fill=variable)) +  
+  geom_bar(stat='identity') + guides(fill=FALSE) + scale_x_discrete(breaks = 1:12, labels=c("Jan","foo","bar","baz","phi","fum", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"))
+
+##########################Maps for crime and housing prices( By Ashley)##############################
+data(zipcode)
+sale_count <- main
+sale_count$Zip.Code<- clean.zipcodes(sale_count$Zip.Code)
+#combine current dataset with zipcode dataset
+sale_count<- merge(sale_count, zipcode, by.x='Zip.Code', by.y='zip')
+#group housing sale count by zip code
+density<- ddply(sale_count, .(Zip.Code), "nrow")
+names(density)[2] <- "count"
+#combine current dataset with 'count' field
+Sale <- merge(sale_count, density)
+#remove duplicates (only show unique zip codes)
+Sale<-Sale[!duplicated(Sale$Zip.Code),]
+
+#map of housing sales in Montgomery County
+moco <- get_map("montgomery county")
+moco_map <- ggmap(moco)
+moco_housing <- moco_map + stat_density2d(aes(x = longitude, y = latitude, fill = ..level..,
+                                              alpha = ..level..),
+                                          bins = 4, data = Sale,
+                                          geom = "polygon") + xlim(-77.5,-76.8) + ylim(38.9,39.3) + labs(title="House Sales By Zip Code", x="Longitude", y="Latitude")
+moco_housing
+
+
+#CRIME COUNTS (using just the crime dataset, since each row is a crime incident)
+
+crime_count <- read.csv("crime_2014.csv", header=TRUE, sep=",")
+crime_count$Zip.Code<- clean.zipcodes(crime_count$Zip.Code)
+#combine current dataset with zipcode dataset
+crime_count<- merge(crime_count, zipcode, by.x='Zip.Code', by.y='zip')
+#group crime count by zip code
+density<- ddply(crime_count, .(Zip.Code), "nrow")
+names(density)[2] <- "count"
+#combine current dataset with 'count' field
+Crime <- merge(crime_count, density)
+#remove duplicates (only show unique zip codes)
+Crime<-Crime[!duplicated(Crime$Zip.Code),]
+
+#map of crime counts in Montgomery County
+moco_crime <- moco_map + stat_density2d(aes(x = longitude, y = latitude, fill = ..level..,
+                                            alpha = ..level..),
+                                        bins = 4, data = Crime,
+                                        geom = "polygon") + xlim(-77.5,-76.8) + ylim(38.9,39.3) + labs(title="Crime Counts By Zip Code", x="Longitude", y="Latitude")
+moco_crime
+
+
+#MEDIAN HOUSING SALES
+dataset <- main
+main$Zip.Code<- clean.zipcodes(main$Zip.Code)
+#combine current dataset with zipcode dataset
+median_sale<- merge(main, zipcode, by.x='Zip.Code', by.y='zip')
+#group median price by zip code
+density<- ddply(median_sale, .(Zip.Code), "nrow")
+names(density)[2] <- "count"
+#combine current dataset with 'count' field
+Median <- merge(median_sale, density)
+#remove duplicates (only show unique zip codes)
+Median<-Median[!duplicated(Median$Zip.Code),]
+
+#map of median price in Montgomery County
+moco_median <- moco_map + stat_bin2d(
+  aes(x = longitude, y = latitude, colour = Median_Sales,
+      fill = Median_Sales),
+  size = 0.25, bins = 20, alpha = 0.5,
+  data = Median) + labs(title="Median Housing Prices By Zip Code", x="Longitude", y="Latitude")
+moco_median
+
+
+
+
+
+
+
+################ CLASSIFICATION MODELS and two additiona regression models(By Arash)#######################
+
+#training and testing data
+index=nrow(main)
+index2=sample(index, round(index/5))
+train=main[-index2,]
+test=main[index2,]
+
+
+
+
+
+#SVM
+
+base1 <- sum(test$class == 2) / nrow(test)
+results <- data.frame(model=c("MFC"), score=c(base1))
+
+#performane function
+performance1 = function (M,df,name){
+  
+  pr=predict(M,test)
+  ac=confusionMatrix(pr,test$class)$overal[1]
+  df <- rbind(df, data.frame(model=c(name), score=ac) )
+  return(df)
+}
+
+#+ number of bedrooms
+
+train1=train[,c(45,54)]
+M1= svm(class~.,data = train1)
+
+
+#+number of bathrooms
+train1=train[,c(45,44,54)]
+M2= svm(class~.,data = train1)
+
+
+#+type of house
+train1=train[,c(45,44,50,54)]
+M3= svm(class~.,data = train1)
+
+
+#+garage
+
+train1=train[,c(45,44,50,52,54)]
+M4= svm(class~.,data = train1)
+
+#+total crime
+train1=train[,c(27,45,44,50,52,54)]
+M5= svm(class~.,data = train1)
+
+
+#+facilies
+train1=train[,c(25,27,45,44,50,52,54)]
+M6= svm(class~.,data = train1)
+
+
+#+crimes in details
+train1=train[,c(2:24,25,27,45,44,50,52,54)]
+M7= svm(class~.,data = train1)
+
+
+
+results<-performance1(M1,results,"+number of bedrooms")
+results<-performance1(M2,results,"+number of bathrooms")
+results<-performance1(M3,results,"+type of house")
+results<-performance1(M4,results,"+garage")
+results<-performance1(M5,results,"+total crime")
+results<-performance1(M6,results,"+facilies")
+results<-performance1(M7,results,"+crime in details")
+
+
+#The result of feature engineering for model accuracy
+
+results
+# AS we can see the detailed crime give an additional 10 % accuracy
+
+
+#Error Analysis: contingency table
+test$pr=predict(M7,test)
+confusionMatrix(test$pr,test$class)
+
+
+#Decision tree
+
+#using the final model obtained by feature engineering by a decision model and gain the accuracy
+train1=train[,c(2:24,25,27,45,44,50,52,54)]
+M8= rpart(class~.,data = train1,method = "class",parms=list(split="information"),
+          control=rpart.control(usesurrogate=0,  maxsurrogate=0))
+fancyRpartPlot(M8)
+test$pr=predict(M8,test,type = "class")
+c(Accuracy=mean(test$pr==test$class))
+
+#Error Analysis: contingency table
+confusionMatrix(test$pr,test$class)
+
+
+
+#Random forest
+#Using Random forrest as an improvised version of Decision Trees
+M9 <- randomForest(class ~ . , data = train1)
+test$pr=predict(M9,test,type = "class")
+c(Accuracy=mean(test$pr==test$class))
+confusionMatrix(test$pr,test$class)
+
+
+
+
+#Multinomial logisitc regression
+
+
+
+train1=train[,c(2:24,25,27,45,44,50,52,54)]
+test1=test[,c(2:24,25,27,45,44,50,52,54)]
+M10=multinom(class~.,data=train1)
+summary(M10)
+#tidy(M10)
+
+pr1=predict(M10,test1,"probs")
+# A sample of Class predicted probabilities for some records
+head(pr1)
+test1$pr=apply(pr1,1,which.max)
+c(Accuracy=mean(test1$pr==test1$class))
+
+confusionMatrix(test$pr,test$class)
+
+
+#Cross-validation method for Average multninomial logit accuracy
+
+Accuracy=numeric(30)
+for ( i in 1:30){
+  
+  index=nrow(main)
+  index2=sample(index, round(index/5))
+  train=main[-index2,]
+  test=main[index2,]
+  
+  train1=train[,c(2:24,25,27,45,44,50,52,54)]
+  test1=test[,c(2:24,25,27,45,44,50,52,54)]
+  
+  M10=multinom(class~.,data=train1)
+  pr1=predict(M10,test1,"probs")
+  test1$pr=apply(pr1,1,which.max)
+  Accuracy[i]=mean(test1$pr==test1$class)
+}
+
+mean(Accuracy)
+
+
+
+
+
+
+################ Reression for price difference #########################
+#add a variable "price_dif" which is the difference of original price and closing price
+#The goal is to predict the reduction or increase in hosuing price in the market based on its attributes
+# log of price is used because of its large amount
+
+main$Median_Sales=as.numeric(main$Median_Sales)
+index=nrow(main)
+index2=sample(index, round(index/5))
+train=main[-index2,]
+test=main[index2,]
+
+#effect of crime
+train1=train[,c(2:24,53)]
+ml1=glm(price_dif~.,data = train1)
+summary(ml1)
+
+
+
+#eefect of housing attributes
+train1=train[,c(25,27,31,36,40,44,45,50,52,53)]
+ml1=glm(price_dif~.-Original.List.Price-Median_Sales+log(Original.List.Price)+log(Median_Sales),data = train1)
+summary(ml1)
+tidy(ml1)
+ml2=xtable(ml1)
+write.csv(ml2,"23.csv")
+
+
+
+
+######################Regression for Days in Market
+#The goal is to build a regression model to predict how long a certain house will be in Market before being sold
+
+main$Median_Sales=as.numeric(main$Median_Sales)
+index=nrow(main)
+index2=sample(index, round(index/5))
+train=main[-index2,]
+test=main[index2,]
+
+train1=train[,c(36,40,44,45,50,52,43)]
+ml1=lm(DOMP~.-Original.List.Price+log(Original.List.Price),data = train1)
+#ml2=step(ml1,direction = "both",scope = list(lower=DOMP~1,upper=DOMP~.),k=3)
+summary(ml1)
+tidy(ml1)
+ml2=xtable(ml1)
+write.csv(ml2,"results1.csv")
+visreg(ml1)
+
+
+
+
+
+########################## Regression models for housing price and PCA ( By Natasha)########################
+
+main=data_4
+#change the name of main so this works with my code
+full <- main
+names(full)
+
+
+#remove Condo.Coop.Fee, HOA.Fee, lot.sqft (46-48) because they are not needed and have NAs
+#51 and 52 were for Arash's analysis and have been removed
+full <- full[,-c(46:48,51,52)]
+names(full)
+
+#how many NAs?
+row.has.na <- apply(full, 1, function(x){any(is.na(x))})
+
+
+#get rid of rows with na
+full <- full[!row.has.na,]
+#only 18 records have been removed
+
+#remove $ from median_sales and mean_sales
+full$median_sales_num<-substring(full$Median_Sales, 2)
+full$mean_sales_num<-substring(full$Mean_Sales, 2)
+
+#change from character to numeric
+full$mean_sales_num <- as.numeric(gsub(",", "", full$mean_sales_num))
+full$median_sales_num <- as.numeric(gsub(",","", full$median_sales_num))
+
+#another try at omitting NAs because they seem to still be there
+full <- na.omit(full)
+
+#create a dataframe with only numeric and factor data
+#get the indexes for all of the columns
+names(full)
+#get the classes for all of the columns
+lapply(full, class)
+#reclass columns we will keep to numeric or factor
+full$Zip.Code <- factor(full$Zip.Code)
+
+
+
+
+#delete the columns with dollar signs for median and mean housing price, type of sale (type.y) was removed because it is all standard
+full <- full[,-c(28,31,32)]
+
+names(full)
+#full <- full[,-c(33:36, 39)]
+
+#check to see that the classes of the remaining columns are all numeric (including integer), factor
+lapply(full, class)
+
+#garage is still logical, not sure if that is ok or not
+
+#split dataset to test, train
+index <- 1:nrow(full)
+testindex <- sample(index, trunc(length(index)/5))
+testset <- full[testindex,]
+trainset <- full[-testindex,]
+
+#split for development set
+index <- 1:nrow(trainset)
+devsetindex <- sample(index, trunc(length(index)/5))
+devset <- full[devsetindex,]
+trainset <- full[-devsetindex,]
+
+#now we have a testset, devset and trainset
+
+#lm
+#See if some of the factors are imporant
+
+
+
+#Baseline model
+mylogit <- lm(Close.Price ~ drug + LOST.PROPERTY + VANDALISM.MOTOR.VEHICLE + LARCENY.PICK.POCKET + Zip.Code + AGG.ASSLT.FIREARM.CITIZEN + BURG.FORCE.RES.NIGHT, data = trainset
+)
+step<-stepAIC(mylogit, direction = "both")
+step$anova
+plot(mylogit)
+#
+#
+#
+#
+#
+#predict house price
+devset$predicted_close_price1<-predict(mylogit, devset)
+
+# how far off are the predicted prices
+devset$difference1 <- devset$predicted_close_price1 - devset$Close.Price
+devset$percent_error1 <- abs(devset$difference1/devset$Close.Price)
+
+#Model 2 - The model from Model 1 final
+mylogit <- lm(Close.Price ~ Bedrooms + Total.Square.Footage + Baths.All + Date.Quarter + community_facilities_count + Number_of_Crimes_2014 + drug + LOST.PROPERTY + VANDALISM.MOTOR.VEHICLE + LARCENY.PICK.POCKET + Zip.Code + AGG.ASSLT.FIREARM.CITIZEN + BURG.FORCE.RES.NIGHT, data = trainset)
+step<-stepAIC(mylogit, direction = "both")
+step$anova
+plot(mylogit)
+#
+#
+#
+#
+#
+
+#predict house price
+devset$predicted_close_price2<-predict(mylogit, devset)
+
+# how far off are the predicted prices
+devset$difference2 <- devset$predicted_close_price2 - devset$Close.Price
+devset$percent_error2 <- abs(devset$difference2/devset$Close.Price)
+
+#Model 3
+mylogit <- lm(Close.Price ~ Bedrooms + Total.Square.Footage + Baths.All + Date.Quarter + community_facilities_count + drug + LOST.PROPERTY + VANDALISM.MOTOR.VEHICLE + LARCENY.PICK.POCKET + Zip.Code + AGG.ASSLT.FIREARM.CITIZEN + BURG.FORCE.RES.NIGHT, data = trainset
+)
+step<-stepAIC(mylogit, direction = "both")
+step$anova
+plot(mylogit)
+#
+#
+#
+#
+#
+#predict house price
+devset$predicted_close_price3<-predict(mylogit, devset)
+
+# how far off are the predicted prices
+devset$difference3 <- devset$predicted_close_price3 - devset$Close.Price
+devset$percent_error3 <- abs(devset$difference3/devset$Close.Price)
+
+#Model 4
+mylogit <- lm(Close.Price ~ median_sales_num + mean_sales_num + Bedrooms + Total.Square.Footage + Baths.All + Date.Quarter + community_facilities_count + drug + LOST.PROPERTY + VANDALISM.MOTOR.VEHICLE + LARCENY.PICK.POCKET + Zip.Code + ASSAULT...BATTERY...CITIZEN + POL.INFORMATION + DRIVING.UNDER.THE.INFLUENCE + BURG.FORCE.RES.NIGHT, data = trainset)
+step<-stepAIC(mylogit, direction = "both")
+step$anova
+plot(mylogit)
+#
+#
+#
+#
+#
+#predict house price
+devset$predicted_close_price4<-predict(mylogit, devset)
+
+# how far off are the predicted prices
+devset$difference4 <- devset$predicted_close_price4 - devset$Close.Price
+devset$percent_error4 <- abs(devset$difference4/devset$Close.Price)
+
+#Model 5
+mylogit <- lm(Close.Price ~ median_sales_num + mean_sales_num + Bedrooms + Total.Square.Footage + Baths.All + Date.Quarter + community_facilities_count + drug + LOST.PROPERTY + VANDALISM.MOTOR.VEHICLE + LARCENY.PICK.POCKET + Zip.Code + ASSAULT...BATTERY...CITIZEN + POL.INFORMATION + DRIVING.UNDER.THE.INFLUENCE + BURG.FORCE.RES.NIGHT, data = trainset)
+step<-stepAIC(mylogit, direction = "both")
+step$anova
+plot(mylogit)
+#
+#
+#
+#
+#
+#predict housing price
+devset$predicted_close_price5<-predict(mylogit, devset)
+
+# how far off are the predicted prices
+devset$difference5 <- devset$predicted_close_price5 - devset$Close.Price
+devset$percent_error5 <- abs(devset$difference5/devset$Close.Price)
+
+#Model 9 - Final Linear Model
+#linear model with 3 factors and 4 identified in PCA, AIC 227765.1 
+#This comes here because some columns were removed for PCA, below.
+
+names(trainset)
+mylogit <- lm(
+  as.formula(paste(colnames(trainset)[34], "~",
+                   paste(colnames(trainset)[c(2, 17, 4, 3, 41:43)], collapse = "+"),
+                   sep = ""
+  )),
+  data=trainset
+)
+step<-stepAIC(mylogit, direction = "both")
+step$anova
+plot(mylogit)
+#
+#
+#
+#
+#
+#predict housing price
+devset$predicted_close_price9<-predict(mylogit, devset)
+
+# how far off are the predicted prices
+devset$difference9 <- devset$predicted_close_price9 - devset$Close.Price
+devset$percent_error9 <- abs(devset$difference9/devset$Close.Price)
+
+#linear model 6
+mylogit <- lm(Close.Price ~ median_sales_num + mean_sales_num + Bedrooms + Total.Square.Footage + Baths.All + Date.Quarter + community_facilities_count + drug + VANDALISM.MOTOR.VEHICLE + LARCENY.PICK.POCKET + ASSAULT...BATTERY...CITIZEN + POL.INFORMATION + DRIVING.UNDER.THE.INFLUENCE + BURG.FORCE.RES.NIGHT, data = trainset)
+step<-stepAIC(mylogit, direction = "both")
+step$anova
+plot(mylogit)
+#
+#
+#
+#
+#
+#predict house price
+devset$predicted_close_price6<-predict(mylogit, devset)
+
+# how far off are the predicted prices
+devset$difference6 <- devset$predicted_close_price6 - devset$Close.Price
+devset$percent_error6 <- abs(devset$difference6/devset$Close.Price)
+
+#linear model with 3 factors
+
+#PCA
+#In order to do PCA, factor columns need to be removed, but they are needed for the lm, above
+#rattle was used here to identify the factor columns, quickly
+#it is commented out for the RMD
+names(full)
+
+#remove columns that are factors (because something isn't working in PCA)
+full1 <- full [, -c(1, 30, 31,35,36,38,44)]
+
+#split dataset to test, train
+index <- 1:nrow(full1)
+testindex <- sample(index, trunc(length(index)/5))
+testset <- full1[testindex,]
+trainset <- full1[-testindex,]
+
+#split for development set
+index <- 1:nrow(trainset)
+devsetindex <- sample(index, trunc(length(index)/5))
+devset2 <- full1[devsetindex,]
+trainset <- full1[-devsetindex,]
+
+
+#PCA
+#http://www.statmethods.net/advstats/factor.html
+#run the Principle Component Analysis
+fit <- princomp(trainset, cor=TRUE)
+summary(fit) # print variance accounted for 
+loadings(fit) # pc loadings 
+plot(fit,type="lines") # scree plot 
+#fit$scores # the principal components
+#The biplot is messy because there are so many components. 
+#There is likely a better way to plot the biplot.
+biplot(fit)
+
+#which factors are most important? - this was useful
+#This provides a ranking of the PCA by index
+#The index can then be used to choose factors for the linear model
+library(psych)
+fit <- principal(trainset, nfactors=37, rotate="varimax")
+fit # print results
+
+
+
+#linear model with numeric data from top PCA factors - Model 7
+#final model AIC 232728.8 - not an improvement over baseline
+mylogit <- lm(
+  as.formula(paste(colnames(trainset)[31], "~",
+                   paste(colnames(trainset)[c(1,16,3,2,5,6,8,10,13,24)], collapse = "+"),
+                   sep = ""
+  )),
+  data=trainset
+)
+step<-stepAIC(mylogit, direction = "both")
+step$anova
+plot(mylogit)
+#
+#
+#
+#
+#
+#predict house price
+devset2$predicted_close_price7<-predict(mylogit, devset2)
+
+# how far off are the predicted prices
+devset2$difference7 <- devset2$predicted_close_price7 - devset2$Close.Price
+devset2$percent_error7 <- abs(devset2$difference7/devset2$Close.Price)
+
+#see the indices for creating the model by index
+names(trainset)
+
+#what if we use the PCA to give us a model
+#model with PCA columns
+mylogit <- lm(
+  as.formula(paste(colnames(trainset)[29], "~",
+                   paste(colnames(trainset)[c(1, 11, 3, 2)], collapse = "+"),
+                   sep = ""
+  )),
+  data=trainset
+)
+step<-stepAIC(mylogit, direction = "both")
+step$anova
+plot(mylogit)
+#
+#
+#
+#
+#
+#predict house price
+devset2$predicted_close_price8<-predict(mylogit, devset2)
+
+# how far off are the predicted prices
+devset2$difference8 <- devset2$predicted_close_price8 - devset2$Close.Price
+devset2$percent_error8 <- abs(devset2$difference8/devset2$Close.Price)
+
+
+#Non Graphical Solutions to Scree Test
+#need more understanding of this concept in order to interpret this plot
+library(nFactors)
+ev <- eigen(cor(trainset)) # get eigenvalues
+ap <- parallel(subject=nrow(trainset),var=ncol(trainset),
+               rep=100,cent=.05)
+nS <- nScree(x=ev$values, aparallel=ap$eigen$qevpea)
+plotnScree(nS)
+
+#run PCA again but with fewer factors to get a biplot that is readable
+new_trainset <- (trainset)[c(1, 11, 3, 2, 29)]
+fit <- princomp(new_trainset, cor=TRUE)
+summary(fit) # print variance accounted for 
+#loadings(fit) # pc loadings 
+plot(fit,type="lines") # scree plot 
+#fit$scores # the principal components
+biplot(fit)
+
+#attempt at more readable biplot, did not work
+biplot(fit, expand=10, xlim=c(-0.30, 0.0), ylim=c(-0.1, 0.1))
+
+
+
+
+
+
+
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
